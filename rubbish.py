@@ -1,106 +1,109 @@
-#!/usr/bin/python3.4.2
-
 import RPi.GPIO as GPIO
 import time
 import os
+import random
+import subprocess
 
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM)
 
-totalSounds = 100
-curSound = 25
-#soundsFolder =
+# variables
 
-usesFile = open("uses.txt", "r")
+# server
+hostname = 'localhost'
+port = '9000'
 
-clearScreen = 0 # once it hits 8 clear screen
-distance = 0
-uses = 100 #usesFile.read()
+
+# GPIO
+GPIO.setwarnings(False)  # disables warnings
+GPIO.setmode(GPIO.BCM)  # puts GPIO in correct mode
+
+# pin numbers
 TRIG = 23
 ECHO = 24
 
+
+# sounds
+sounds = os.listdir('./sounds/')  # creates list of all sound names
+totalSounds = len(sounds)
+
+
+# gets value of uses
+usesFile = open('uses.txt', 'r')
+uses = usesFile.read()
 usesFile.close()
 
-# Initial Screen
-os.system('clear')
-print ("Rubbish project by Lochie Ashcroft & Richard Ngawati")
+# distance
+pulseStart = 0
+pulseEnd = 0
+distance = 0
+
+# condition for loop
+soundPlaying = False
+
+
+# functions
+
+def ui():
+    os.system('clear')
+    print("Rubbish project by Lochie Ashcroft.")
+    print("This project can be found on github.com/loxstomper/rubbish/")
+    print("\nConnected to server xxx.xxx.x.x")
+    print("Connect to xxx.xxx.x.x to view the website.")
+    print("Sounds : 5 / 100")
+    print("Uses:", uses, "\n")
+
+
+def trigger_sensor():
+    GPIO.setup(TRIG, GPIO.OUT)
+    GPIO.setup(ECHO, GPIO.IN)
+    GPIO.output(TRIG, True)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, False)
+
+
+def play_sound():
+    # get a random sound, - 1 because first element is 0
+    sound_number = random.randint(0, (len(sounds) - 1))
+    next_sound = str(sounds[sound_number])
+    soundPlaying = True  # top make sure only one sound is played at a time
+    subprocess.call(["mpg321", "./sounds/%s" % next_sound])
+    soundPlaying = False
+
+# splash screen
+print(sounds)
 time.sleep(2)
-print ("\n\n[+] Connecting to server")
-time.sleep(2) # simulating setting up
-print ("	Connected to xxx.xxx.x.x")
-time.sleep(1)
-print("\n[+] File locations")
-print ("	 Number of uses stored in ./uses.txt or uses.csv havent decided yet")
-time.sleep(1)
-print ("	 Sounds located in ./sounds/")
-time.sleep(3)
-os.system('clear')
-print ("Rubbish project by Lochie Ashcroft & Richard Ngawati.")
-print ("This project can be found on github.com/sdfghjklpoiuytrdfghjkjh")
-print ("\nConnected to server xxx.xxx.x.x")
-print("Connect to xxx.xxx.x.x to view the website.")
-print ("Sounds: 5 / 100")#FIX THIS
-print ("Uses:"  , uses, "\n") #FIX THIS
 
+while soundPlaying == False:
+    initialDistance = distance
+    trigger_sensor()
 
-# ACTUAL PROGRAM
-while True:
+    while GPIO.input(ECHO) == 0:  # record time of the pulse
+        pulseStart = time.time()
 
-		# RESETS SCREEN
-		if clearScreen == 14:
-			os.system('clear')
-			print ("Rubbish project by Lochie Ashcroft & Richard Ngawati.")
-			print ("This project can be found on github.com/sdfghjklpoiuytrdfghjkjh")
-			print ("\nConnected to server xxx.xxx.x.x")
-			print("Connect to xxx.xxx.x.x to view the website.")
-			print ("Sounds : 5 / 100")#FIX THIS
-			print ("Uses:"   , uses, "\n") #FIX THIS
-			clearScreen = 0
+    while GPIO.input(ECHO) == 1:  # end of pulse
+            pulseEnd = time.time()
 
-		# value for comparing
-		initial_distance = distance
-	    # Trigger sensor
-		GPIO.setup(TRIG, GPIO.OUT)
-		GPIO.setup(ECHO, GPIO.IN)
-		GPIO.output(TRIG, False)
-		GPIO.output(TRIG, True)
-		time.sleep(0.00001)
-		GPIO.output(TRIG, False)
+    # CALCULATING DISTANCE
+    pulseDuration = pulseEnd - pulseStart
+    distance = pulseDuration * 17150
+    distance = round(distance, 2)  # rounded to 2 digits
+    print("Distance: ", distance, "cm")  # remove this for final version
 
-		while GPIO.input(ECHO)==0: # record time of the pulse
-			pulse_start = time.time()
+    # if rubbish has been put into the bin
+    if distance <= (initialDistance * 0.5):  # less than 50% for tolerance, faster you use the sensor less accurate it is
+        uses = int(uses) + 1  # because uses is read from file making it a string
 
-		while GPIO.input(ECHO)==1: # end of pulse
-			pulse_end = time.time()
+        # save uses to file
+        usesFile = open('uses.txt', 'w')
+        usesFile.write(str(uses))
+        usesFile.close()
 
-		# CALCULATING DISTANCE
-		pulse_duration = pulse_end - pulse_start
-		distance = pulse_duration * 17150 # speed of sound
-		distance = round(distance, 2) # rounded to 2 digits
+        # save time of use to file
+        usesTime = open('usesTime.txt', 'w')
+        usesTime.write(str(time.strftime('%c%n')))  # day month date hour minute second year
+        usesTime.close()
 
-		print ("Distance: ",distance,"cm")
-		clearScreen += 1
+        play_sound()
+        ui()
 
-		if distance <= (initial_distance * 0.9): # 10% less than actual figure just for tolerance
-			uses += 1
-			usesFile = open("uses.txt", "w")
-			usesFile.write(str(uses))
-			usesFile.close()
-			#os.system('clear')
-			#print ("Rubbish project by Lochie Ashcroft & Richard Ngawati.")
-			#print ("This project can be found on github.com/sdfghjklpoiuytrdfghjkjh")
-			#print ("\nConnected to server xxx.xxx.x.x")
-			#print("Connect to xxx.xxx.x.x to view the website.")
-			#print ("Sounds : 5 / 100")#FIX THIS
-			#print ("Uses:"   , uses) #FIX THIS
-		    #clearScreen = 0
+    time.sleep(0.1)  # wait 1 seconds then repeat
 
-		#	usesTime = open("usesTime.txt", "w")
-			#usesTime.write((str(time.strftime("%I:%M:%S")))
-		#	usesTime.write("\n") # couldnt get new line working above
-			#usesTime.close()
-
-			#refresh with everytime it gets tirggered
-
-
-		time.sleep(1)
