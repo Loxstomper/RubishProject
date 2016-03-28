@@ -3,13 +3,18 @@ import time
 import os
 import random
 import subprocess
+import socket
 
 
 # variables
+rubbish_time = ''
+
 
 # server
 hostname = 'localhost'
-port = '9000'
+port = '5555'
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 
 
 # GPIO
@@ -24,6 +29,7 @@ ECHO = 24
 # sounds
 sounds = os.listdir('./sounds/')  # creates list of all sound names
 totalSounds = len(sounds)
+next_sound = ''
 
 
 # gets value of uses
@@ -45,10 +51,10 @@ soundPlaying = False
 def ui():
     os.system('clear')
     print("Rubbish project by Lochie Ashcroft.")
-    print("This project can be found on github.com/loxstomper/rubbish/")
-    print("\nConnected to server xxx.xxx.x.x")
-    print("Connect to xxx.xxx.x.x to view the website.")
-    print("Sounds : 5 / 100")
+    print("This project can be found on github.com/loxstomper/RubbishProject/")
+    print("\nConnected to server ", hostname)
+    print("Connect to http://", hostname, " to view the website.")
+    print("There are a total of ", len(sounds), " sounds")
     print("Uses:", uses, "\n")
 
 
@@ -64,13 +70,27 @@ def play_sound():
     # get a random sound, - 1 because first element is 0
     sound_number = random.randint(0, (len(sounds) - 1))
     next_sound = str(sounds[sound_number])
+
+    # send next_sound to server
+
     soundPlaying = True  # top make sure only one sound is played at a time
     subprocess.call(["mpg321", "./sounds/%s" % next_sound])
     soundPlaying = False
 
+
+def send_to_server(rubbish_time, sound):
+    s.send(rubbish_time.encode())
+    s.send(str.encode(' '))
+    s.send(sound.encode())
+
+
+# connecting to server
+print("Connecting to server @:", hostname, port, "...")
+s.connect((hostname, port))
+print("Connected successfully")
+
 # splash screen
-print(sounds)
-time.sleep(2)
+ui()
 
 while soundPlaying == False:
     initialDistance = distance
@@ -86,11 +106,13 @@ while soundPlaying == False:
     pulseDuration = pulseEnd - pulseStart
     distance = pulseDuration * 17150
     distance = round(distance, 2)  # rounded to 2 digits
-    print("Distance: ", distance, "cm")  # remove this for final version
+    # print("Distance: ", distance, "cm")  # remove this for final version
 
     # if rubbish has been put into the bin
     if distance <= (initialDistance * 0.5):  # less than 50% for tolerance, faster you use the sensor less accurate it is
         uses = int(uses) + 1  # because uses is read from file making it a string
+
+        # send uses to server
 
         # save uses to file
         usesFile = open('uses.txt', 'w')
@@ -102,7 +124,9 @@ while soundPlaying == False:
         usesTime.write(str(time.strftime('%c%n')))  # day month date hour minute second year
         usesTime.close()
 
+        rubbish_time = str(time.strftime('%H:%m:%s'))
         play_sound()
+        send_to_server(rubbish_time, next_sound)
         ui()
 
     time.sleep(0.1)  # wait 1 seconds then repeat
