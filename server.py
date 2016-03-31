@@ -17,17 +17,28 @@ def create_table():
 
 
 def get_get_data_add_to_db():
+
+    global s
     conn, addr = s.accept()
+
     data = conn.recv(2048)  # buffer of 2048 bytes
     print('Received data from: ', addr)
-    data = data.decode()
-    rubbish_time, sound = data.split()
+    global rubbish_time
+    rubbish_time = data.decode()
+    print(rubbish_time)
+
+    data = conn.recv(2048)  # buffer of 2048 bytes
+    global sound
+    sound = data.decode()
+    print(rubbish_time)
 
     # server side creations no point wasting cpu cycles on the one in the bin
     date = str(time.strftime('%d-%m-%Y'))
     day = str(time.strftime('%A'))
 
     # have to reconnect to database because i close connection every iteration
+    global db
+    global db_c
     db = sqlite3.connect('rubbish.db')
     db_c = db.cursor()
 
@@ -48,12 +59,12 @@ def get_get_data_add_to_db():
 
 # set up server
 try:
-    s.bind((host,port))
+    s.bind((host, port))
 except socket.error as e:
     print(str(e))
 
-s.listen(5) # max of 5 connections simultaneously
-print("waiting for a connection")
+s.listen(5)  # max of 5 connections simultaneously
+print("waiting for a connection...\n")
 
 # create the table if it doesnt exist
 create_table()
