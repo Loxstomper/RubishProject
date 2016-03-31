@@ -1,6 +1,7 @@
 import sqlite3
 import socket
 import time
+import os
 
 # server
 host = ''
@@ -10,6 +11,10 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # ipv4 / tcp connection
 # database
 db = sqlite3.connect('rubbish.db')
 db_c = db.cursor()
+
+# values
+rubbish_time = ''
+sound = ''
 
 
 def create_table():
@@ -45,14 +50,19 @@ def get_get_data_add_to_db():
     # add to db and save
     db_c.execute("INSERT INTO rubbish(date, day, time, sound) VALUES (?, ?, ?, ?)",
                  (date, day, rubbish_time, sound))
-    print("Added values to database: ", date, ",", day, ",", rubbish_time, ",", sound)
+    # print("Added values to database: ", date, ",", day, ",", rubbish_time, ",", sound)
+    print("Added values to the database: \n")
+    print("Date: ", date)
+    print("Day: ", day)
+    print("Time: ", rubbish_time)
+    print("Sound: ", sound, "\n")
     db.commit()
     print('Saved changes to database.')
 
     # close connection to db
     db_c.close()
     db.close()
-    print('Closed the database.')
+    print('Closed the database. \n\n')
     print('Waiting for a connection...\n')
 
 # Program
