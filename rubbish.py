@@ -12,9 +12,8 @@ rubbish_time = ''
 
 # server
 hostname = 'localhost'
-port = '5555'
+port = 5555
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 
 
 # GPIO
@@ -32,7 +31,7 @@ totalSounds = len(sounds)
 next_sound = ''
 
 
-# gets value of uses
+# gets value of uses from file
 usesFile = open('uses.txt', 'r')
 uses = usesFile.read()
 usesFile.close()
@@ -62,32 +61,32 @@ def trigger_sensor():
     GPIO.setup(TRIG, GPIO.OUT)
     GPIO.setup(ECHO, GPIO.IN)
     GPIO.output(TRIG, True)
-    time.sleep(0.00001)
+    time.sleep(0.00001)  # sensor requires a 5v pulse for 0.00001 seconds to activate
     GPIO.output(TRIG, False)
 
 
 def play_sound():
     # get a random sound, - 1 because first element is 0
     sound_number = random.randint(0, (len(sounds) - 1))
+    global next_sound
     next_sound = str(sounds[sound_number])
 
-    # send next_sound to server
-
+    global soundPlaying
     soundPlaying = True  # top make sure only one sound is played at a time
     subprocess.call(["mpg321", "./sounds/%s" % next_sound])
     soundPlaying = False
 
 
-def send_to_server(rubbish_time, sound):
-    s.send(rubbish_time.encode())
-    s.send(str.encode(' '))
-    s.send(sound.encode())
+def send_to_server(activation_time, sound):
+    global s
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((hostname, port))
 
+    data = rubbish_time + ' ' + sound  # space to make a split point for the server
+    data = data.encode()
+    s.send(data)
+    s.close()  # close the socket
 
-# connecting to server
-print("Connecting to server @:", hostname, port, "...")
-s.connect((hostname, port))
-print("Connected successfully")
 
 # splash screen
 ui()
@@ -109,10 +108,8 @@ while soundPlaying == False:
     # print("Distance: ", distance, "cm")  # remove this for final version
 
     # if rubbish has been put into the bin
-    if distance <= (initialDistance * 0.5):  # less than 50% for tolerance, faster you use the sensor less accurate it is
+    if distance <= (initialDistance * 0.5): # less than 50% for tolerance, faster you use the sensor less accurate it is
         uses = int(uses) + 1  # because uses is read from file making it a string
-
-        # send uses to server
 
         # save uses to file
         usesFile = open('uses.txt', 'w')
@@ -124,7 +121,7 @@ while soundPlaying == False:
         usesTime.write(str(time.strftime('%c%n')))  # day month date hour minute second year
         usesTime.close()
 
-        rubbish_time = str(time.strftime('%H:%m:%s'))
+        rubbish_time = str(time.strftime('%I:%M:%S'))  # no need for 24-hour time
         play_sound()
         send_to_server(rubbish_time, next_sound)
         ui()
