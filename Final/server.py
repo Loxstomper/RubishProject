@@ -47,7 +47,7 @@ def get_data_add_to_db():
     # server side creations no point wasting cpu cycles on the one in the bin
     date = str(time.strftime('%d-%m-%Y'))
     day = str(time.strftime('%A'))
-    rubbish_time = str(time.strftime('%I:%M'))
+    rubbish_time = str(time.strftime('%I:%M:%S'))
 
     # have to reconnect to database because i close connection every iteration
     global db
